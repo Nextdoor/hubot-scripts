@@ -16,11 +16,11 @@
 # Authors:
 #   Abhijeet Kumar (abhijeet@nextdoor.com)
 #   Jeff Robidoux (jeff@nextdoor.com)
-#   Daisuke Fujiwara (daisuke@nextdoor.com
+#   Daisuke Fujiwara (daisuke@nextdoor.com)
 
 cheerio = require('cheerio')
 
-getValue = (body, selector) ->
+getText = (body, selector) ->
   $ = cheerio.load(body)
   $(selector).text().trim()
 
@@ -34,7 +34,7 @@ currentPlayStoreVersion = null
 checkPlayStoreVersion = (robot) ->
     robot.http(getPlaystoreURL())
       .get() (err, res, body) ->
-        playstoreVersion = getValue body, 'div[itemprop=softwareVersion]'
+        playstoreVersion = getText body, 'div[itemprop=softwareVersion]'
 
         if not currentPlayStoreVersion
           currentPlayStoreVersion = playstoreVersion
@@ -43,7 +43,7 @@ checkPlayStoreVersion = (robot) ->
         if currentPlayStoreVersion == playstoreVersion
           return
 
-        updatedDate = getValue body, 'div[itemprop=datePublished]'
+        updatedDate = getText body, 'div[itemprop=datePublished]'
         currentPlayStoreVersion = playstoreVersion
         message = "<!everyone>, new version of the Android app, v#{currentPlayStoreVersion}, is now available for download (updated #{updatedDate})"
         robot.messageRoom "mobile", message
@@ -54,23 +54,23 @@ module.exports = (robot) ->
   robot.respond /(.*) playstore version/i, (msg) ->
     msg.http(getPlaystoreURL())
        .get() (err, res, body) ->
-         msg.send "Current live version of Android is v#{getValue body, 'div[itemprop=softwareVersion]'} in Google Playstore."
+         msg.send "Current live version of Android is v#{getText body, 'div[itemprop=softwareVersion]'} in Google Playstore."
 
   robot.respond /(.*) playstore rating/i, (msg) ->
     msg.http(getPlaystoreURL())
        .get() (err, res, body) ->
-         msg.send "Nextdoor Android has a score of #{getValue body, '.score'}/5 with #{getValue body, '.reviews-num'} total reviews."
+         msg.send "Android app has a score of #{getText body, '.score'}/5 with #{getText body, '.reviews-num'} total reviews."
 
   robot.respond /(.*) playstore specs/i, (msg) ->
      msg.http(getPlaystoreURL())
        .get() (err, res, body) ->
-        version = getValue body, 'div[itemprop=softwareVersion]'
-        datePublished = getValue body, 'div[itemprop=datePublished]'
-        score = getValue body, '.score'
-        numReviews = getValue body, '.reviews-num'
-        numDownloads = getValue body, 'div[itemprop=numDownloads]'
-        minOS = getValue body, 'div[itemprop=operatingSystems]'
-        fileSize = getValue body, 'div[itemprop=fileSize]'
+        version = getText body, 'div[itemprop=softwareVersion]'
+        datePublished = getText body, 'div[itemprop=datePublished]'
+        score = getText body, '.score'
+        numReviews = getText body, '.reviews-num'
+        numDownloads = getText body, 'div[itemprop=numDownloads]'
+        minOS = getText body, 'div[itemprop=operatingSystems]'
+        fileSize = getText body, 'div[itemprop=fileSize]'
         robot.emit 'slack-attachment', {
             'message': msg.message,
             'content': {
@@ -86,5 +86,12 @@ module.exports = (robot) ->
                         "*File Size:* #{fileSize}"}
         }
 
+  #
+  # Add the following cron-task in conf/cron-tasks.json (Optional)
+  # [{
+  #      "time": "0 0 * * * *",
+  #      "event": "playstore:new_version_notification"
+  #  }]
+  #
   robot.on "playstore:new_version_notification", (data) ->
     checkPlayStoreVersion(robot)
